@@ -80,7 +80,7 @@ let audioEnabled = false;
 let audioCtx = null;
 let bgMusic = null; // HTMLAudioElement (mp3)
 // Background music should sit under SFX (lower than before)
-const MUSIC_TARGET_VOL = 0.2;
+const MUSIC_TARGET_VOL = 0.1;
 
 // fade-state
 let _fadeRaf = 0;
@@ -229,11 +229,11 @@ function grunt(intensity=1){
 
   o.type = Math.random() < 0.5 ? "sawtooth" : "square";
   const base = 90 + Math.random() * 70;
-  o.frequency.setValueAtTime(base * (1 + 0.25*intensity), now);
+  o.frequency.setValueAtTime(base * (1 + 0.30*intensity), now);
   o.frequency.exponentialRampToValueAtTime(base * 0.62, now + 0.18);
 
   g.gain.setValueAtTime(0.0001, now);
-  g.gain.exponentialRampToValueAtTime(0.12*intensity, now + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.30*intensity, now + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
 
   o.connect(f); f.connect(g); g.connect(a.destination);
@@ -250,7 +250,7 @@ function pop(intensity = 1) {
   o.frequency.setValueAtTime(200 + Math.random()*300, now);
   o.type = "sine";
   g.gain.setValueAtTime(0.001, now);
-  g.gain.exponentialRampToValueAtTime(0.12*intensity, now + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.20*intensity, now + 0.02);
   g.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
   o.connect(g); g.connect(a.destination);
   o.start(now); o.stop(now + 0.20);
