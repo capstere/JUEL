@@ -70,16 +70,44 @@
 
   closeWonderBtn?.addEventListener("click", ()=>{
     wonder?.classList.add("hidden");
-    bubble("Tillbaka i rummet. Som vanligt.");
+    bubble("Jahopp, hem ljuva hem...");
   });
 
   // ---------- Audio (WebAudio) ----------
   let audioEnabled = false;
   let audioCtx = null;
+  let bgMusic = null; // HTMLAudioElement (mp3)
 
   function ensureAudio(){
     if (audioCtx) return;
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  function ensureMusic(){
+    if (bgMusic) return;
+    bgMusic = new Audio("assets/julsang.mp3");
+    bgMusic.loop = true;
+    bgMusic.preload = "auto";
+    bgMusic.volume = 0.35;
+  }
+
+  async function musicOn(){
+    if (!audioEnabled) return;
+    ensureMusic();
+    try {
+      // iOS/Chrome kräver user gesture – detta körs från knappklick.
+      await bgMusic.play();
+    } catch (e){
+      console.warn("Kunde inte starta julmusik 😔", e);
+    }
+  }
+
+  function musicOff(reset=true){
+    if (!bgMusic) return;
+    try { bgMusic.pause(); } catch (e) {}
+    if (reset){
+      try { bgMusic.currentTime = 0; } catch (e) {}
+    }
   }
 
   function ping(freq, t=0.08, gain=0.08){
@@ -162,12 +190,24 @@ function swoosh(){
     if (audioEnabled){
       ensureAudio();
       if (audioCtx.state === "suspended") await audioCtx.resume();
+      await musicOn();
       toast("Ljud på.");
       grunt(1.0);
     } else {
+      musicOff(true);
       toast("Ljud av.");
     }
   });
+
+  // Om användaren byter app/flik: pausa musiken så iOS inte blir grinig.
+  document.addEventListener("visibilitychange", ()=>{
+    if (!bgMusic) return;
+    if (document.hidden){
+      musicOff(false);
+    } else if (audioEnabled){
+      musicOn();
+    }
+  }, { passive:true });
 
   // ---------- Canvas / rendering ----------
   if (!canvas){
@@ -298,7 +338,7 @@ function swoosh(){
     jesper.facing = -jesper.facing;
     setAction("bump");
     grunt(0.65);
-    bubble("💢 Aj! Vägg.", 900);
+    bubble("💢 Ajjj!", 900);
     pop(0.9);
     // liten skakning
     state.shakeT = 0.18;
@@ -326,7 +366,7 @@ function swoosh(){
         state.dragging = o;
         o.vx = 0;
         canvas.setPointerCapture(e.pointerId);
-        toast("Flyttar pynt.");
+        toast("Stökar runt lite..");
         grunt(0.7);
         return;
       }
@@ -404,10 +444,10 @@ if (!("PointerEvent" in window)){
     if (id === seq[state.secretStep]){
       state.secretStep++;
       toast(`Hemligheten: ${state.secretStep}/3`);
-      if (state.secretStep === 3) bubble("SITT på stolen. Nu.");
+      if (state.secretStep === 3) bubble("Vila på stolen!");
     } else {
       state.secretStep = 0;
-      toast("Nej. Hemligheten blev sur.");
+      toast("Nää.. börjar om.");
     }
   }
 
@@ -436,13 +476,13 @@ if (!("PointerEvent" in window)){
     grunt(1.0);
 
     if (!best || bestD > reach){
-      bubble("Sparkade luft. Det räknas.", 1200);
+      bubble("Hej hopp!", 1200);
       return;
     }
 
     const dir = Math.sign(best.x - jesper.x) || jesper.facing;
     best.vx += dir * (520 + Math.random()*120);
-    bubble(`👞 SPARK! (${best.label})`, 900);
+    bubble(`👊💥POOF! (${best.label})`, 900);
     advanceSecret(best.id);
   }
 
@@ -450,28 +490,28 @@ if (!("PointerEvent" in window)){
     // sit if close to chair
     const chairCenter = props.chair.x + props.chair.w/2;
     if (Math.abs(jesper.x - chairCenter) > 90){
-      bubble("Satt mentalt. Inte fysiskt.", 1300);
+      bubble("💤 Ingen rast än...", 1300);
       grunt(0.65);
       return;
     }
 
     setAction("sit");
     grunt(0.75);
-    bubble("🪑 …existens… kaffe… jul…", 1400);
+    bubble("🪑 …existens…", 1400);
 
     if (state.secretStep === 3 && !state.unlocked){
-      toast("Kombination fullbordad!");
+      toast("Julkombo fullbordad!");
       unlock();
     }
   }
 
   // ---------- Commentary ----------
   const lines = [
-    "Det här rummet känns… budget.",
-    "Jag vill ha kaffe. Enkelt.",
-    "Högtid: 90% väntan, 10% pynt.",
-    "Den där lilla tavlan… den är tom. Som jag.",
-    "Jag går åt höger. Symboliskt."
+    "saknar inte mitt hörn",
+    "ska nog ta en kopp kaffe",
+    "undra vad de gör på fabriken?",
+    "skönt att vara ledig!",
+    "jätteroligt med jul."
   ];
   setInterval(()=>{
     if (!wonder?.classList.contains("hidden")) return;
@@ -529,8 +569,8 @@ if (jesper.x < leftWall){
 
 // Idle trigger (efter 8s)
 jesper.idleTimer = (jesper.idleTimer || 0) + dt;
-if (jesper.action === "idle" && jesper.idleTimer > 8){
-  bubble("👋 Hallå...?");
+if (jesper.action === "idle" && jesper.idleTimer > 4){
+  bubble("👋 Hohoho...?");
   setAction("wave");
   pop(1.0);
   jesper.idleTimer = 0;
@@ -599,7 +639,7 @@ if (jesper.action !== "idle") jesper.idleTimer = 0;
     // label
     ctx.fillStyle = "rgba(17,24,39,0.25)";
     ctx.font = "900 14px ui-monospace, monospace";
-    ctx.fillText("RUM 01 – KALT / TYDLIGT / JUL", ROOM.x + 14, ROOM.y + ROOM.h - 12);
+    ctx.fillText("                   JUL", ROOM.x + 14, ROOM.y + ROOM.h - 12);
 
     ctx.restore();
   }
@@ -994,7 +1034,7 @@ function drawFramePlaceholder(){
     ctx.font = "900 12px ui-monospace, monospace";
     ctx.fillStyle = "rgba(17,24,39,0.55)";
     ctx.textAlign = "center";
-    ctx.fillText("JESPER", 0, -62);
+    ctx.fillText("JESP", 0, -62);
 
     ctx.restore();
 
@@ -1095,11 +1135,11 @@ function drawFramePlaceholder(){
   }
 
   try{
-    setTimeout(()=>toast("Tips: SPARKA ⏰ → 🍬 → ⭐ och SITT på stolen."), 900);
+    setTimeout(()=>toast("Tips:  ⏰ → 🍬 → ⭐ och vila."), 900);
     requestAnimationFrame(frame);
   } catch(err){
     console.error(err);
-    toast("JS-krasch 😵 (öppna konsolen)", 4000);
+    toast("Krasch 😵", 4000);
   }
 
 })();
