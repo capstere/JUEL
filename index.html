@@ -10,8 +10,8 @@
 <body>
   <header class="topbar">
     <div class="topbar__left">
-      <div class="brand">✨ JESPER I RUMMET ✨</div>
-      <div class="countdown">Tillbaka till hörnet: <span id="countdownValue" class="countdown__value">…</span></div>
+      <div class="brand">✨Jul med JESP✨</div>
+      <div class="countdown">Tillbaka till mitt hörn: <span id="countdownValue" class="countdown__value">…</span></div>
     </div>
     <div class="topbar__right">
       <button id="soundBtn" class="btn">🔊 Ljud: AV</button>
@@ -28,18 +28,18 @@
     </section>
 
     <section class="controls" aria-label="Kontroller">
-      <button id="kickBtn" class="btn btn--big">👞 KNUFF</button>
-      <button id="sitBtn" class="btn btn--big btn--alt">🪑 SITT</button>
+      <button id="kickBtn" class="btn btn--big">👊 Punch</button>
+      <button id="sitBtn" class="btn btn--big btn--alt">🪑 Sit</button>
     </section>
   </main>
 
   <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal__card">
-      <div class="modal__title">Vad är det här egentligen!?</div>
+      <div class="modal__title">WTF!?</div>
       <div class="modal__body">
-        <p><b>Julstämning:</b> Gå runt i julefriden...</p>
-        <p><b>Mys:</b> Pynta lite...</p>
-        <p><b>Uppnå ultimat jul:</b>⏰ → 🍬 → ⭐ → 🪑</p>
+        <p><b>Spel:</b>Gå runt lite</p>
+        <p><b>Syfte:</b>Inget</p>
+        <p><b>Mål:</b>⏰ → 🍬 → ⭐ → 🪑</p>
       </div>
       <div class="modal__actions">
         <button id="closeHelpBtn" class="btn btn--big">Aha...</button>
@@ -49,8 +49,8 @@
 
   <div id="wonder" class="wonder hidden" role="dialog" aria-modal="true">
     <div class="wonder__card">
-      <div class="wonder__title">JESPER: THE RETURN OF THE JESP</div>
-      <div class="wonder__subtitle">Julfrid uppnådd i typ 6.2 sekunder.</div>
+      <div class="wonder__title">The return of the JESP</div>
+      <div class="wonder__subtitle">Julfrid uppnådd.</div>
 
       <div class="wonder__art">
         <img id="wonderImg" class="wonder__img" src="assets/julbild.jpg" alt="Julbild" />
@@ -67,7 +67,8 @@
 
 
   <!-- Preload tavla-bilden (ritas på väggen i canvas) -->
-  <img id="tavlaImg" src="assets/tavla.jpg" alt="Tavla"
+  <!-- Du kan byta till en GIF (t.ex. assets/tavla.gif) om du vill ha animation -->
+  <img id="tavlaImg" src="assets/tavla.gif" alt="Tavla"
        style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" />
 
   <script src="main.js"></script>
