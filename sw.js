@@ -1,5 +1,6 @@
 // Simple offline cache (works on https or localhost)
-const CACHE = "jesper-room-v2";
+// Bumpa versionssträngen när du lägger till/byter assets så att mobilen får nya filer.
+const CACHE = "jesper-room-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,7 +8,8 @@ const ASSETS = [
   "./main.js",
   "./sw.js",
   "./assets/julbild.jpg",
-  "./assets/tavla.jpg",
+  "./assets/tavla.gif",
+  "./assets/julsang.mp3",
 ];
 
 self.addEventListener("install", (event) => {
