@@ -70,88 +70,175 @@
 
   closeWonderBtn?.addEventListener("click", ()=>{
     wonder?.classList.add("hidden");
-    bubble("Jahopp, hem ljuva hem...");
+    bubble("Äntligen hemma…");
   });
 
-  // ---------- Audio (WebAudio) ----------
-  let audioEnabled = false;
-  let audioCtx = null;
-  let bgMusic = null; // HTMLAudioElement (mp3)
+  // ---------- Audio (WebAudio + MP3) ----------
+// Tips: iOS kräver "user gesture" för att starta ljud. Därför auto-startar vi (om sparat som PÅ)
+// först vid första tryck/drag på sidan.
+let audioEnabled = false;
+let audioCtx = null;
+let bgMusic = null; // HTMLAudioElement (mp3)
+// Background music should sit under SFX (lower than before)
+const MUSIC_TARGET_VOL = 0.2;
 
-  function ensureAudio(){
-    if (audioCtx) return;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// fade-state
+let _fadeRaf = 0;
+let _fadeToken = 0;
+let pendingAutoStart = false;
+
+function vibe(pattern){
+  try {
+    if (navigator && typeof navigator.vibrate === "function") navigator.vibrate(pattern);
+  } catch (e) {}
+}
+
+function ensureAudio(){
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function ensureMusic(){
+  if (bgMusic) return;
+  bgMusic = new Audio("assets/julsang.mp3");
+  bgMusic.loop = true;
+  bgMusic.preload = "auto";
+  bgMusic.volume = MUSIC_TARGET_VOL;
+}
+
+function cancelFade(){
+  if (_fadeRaf){
+    try { cancelAnimationFrame(_fadeRaf); } catch (e) {}
+    _fadeRaf = 0;
   }
+}
 
-  function ensureMusic(){
-    if (bgMusic) return;
-    bgMusic = new Audio("assets/julsang.mp3");
-    bgMusic.loop = true;
-    bgMusic.preload = "auto";
-    bgMusic.volume = 0.35;
-  }
+function fadeVolume(audio, toVol, ms, onDone){
+  cancelFade();
+  const token = ++_fadeToken;
+  const fromVol = clamp((audio && typeof audio.volume === "number") ? audio.volume : 0, 0.0001, 1);
+  const start = nowMs();
+  const dur = Math.max(1, ms|0);
+  const target = clamp(toVol, 0.0001, 1);
 
-  async function musicOn(){
-    if (!audioEnabled) return;
-    ensureMusic();
-    try {
-      // iOS/Chrome kräver user gesture – detta körs från knappklick.
-      await bgMusic.play();
-    } catch (e){
-      console.warn("Kunde inte starta julmusik 😔", e);
+  const step = () => {
+    if (token !== _fadeToken) return;
+    const t = clamp((nowMs() - start) / dur, 0, 1);
+    const v = lerp(fromVol, target, t);
+    try { audio.volume = v; } catch (e) {}
+    if (t < 1){
+      _fadeRaf = requestAnimationFrame(step);
+    } else {
+      _fadeRaf = 0;
+      if (typeof onDone === "function") onDone();
     }
-  }
+  };
+  _fadeRaf = requestAnimationFrame(step);
+}
 
-  function musicOff(reset=true){
-    if (!bgMusic) return;
-    try { bgMusic.pause(); } catch (e) {}
+async function musicOn(){
+  if (!audioEnabled) return;
+  ensureMusic();
+  try {
+    // Starta tyst och fadda in
+    bgMusic.volume = 0.0001;
+    await bgMusic.play();
+    fadeVolume(bgMusic, MUSIC_TARGET_VOL, 650);
+  } catch (e){
+    console.warn("Kunde inte starta julstämningen", e);
+  }
+}
+
+function musicOff(reset=true){
+  if (!bgMusic) return;
+  try {
+    fadeVolume(bgMusic, 0.0001, 450, () => {
+      try { bgMusic.pause(); } catch (e) {}
+      if (reset){
+        try { bgMusic.currentTime = 0; } catch (e) {}
+      }
+      // återställ volym så nästa start kan fadda in från tyst
+      try { bgMusic.volume = MUSIC_TARGET_VOL; } catch (e) {}
+    });
+  } catch (e){
+    // fallback: hard stop
+    try { bgMusic.pause(); } catch (e2) {}
     if (reset){
-      try { bgMusic.currentTime = 0; } catch (e) {}
+      try { bgMusic.currentTime = 0; } catch (e2) {}
     }
   }
+}
 
-  function ping(freq, t=0.08, gain=0.08){
-    if (!audioEnabled) return;
-    ensureAudio();
-    const a = audioCtx;
-    const now = a.currentTime;
-    const o = a.createOscillator();
-    const g = a.createGain();
-    o.type = "triangle";
-    o.frequency.value = freq;
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(gain, now + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + t);
-    o.connect(g); g.connect(a.destination);
-    o.start(now); o.stop(now + t + 0.02);
+function setSoundBtnLabel(){
+  if (!soundBtn) return;
+  soundBtn.textContent = audioEnabled ? "🔊 Ljud: PÅ" : "🔊 Ljud: AV";
+}
+
+// --- restore persisted audio preference ---
+try {
+  audioEnabled = localStorage.getItem("jesper_audio_enabled") === "1";
+  pendingAutoStart = audioEnabled;
+} catch (e) {}
+setSoundBtnLabel();
+if (audioEnabled) setTimeout(()=>toast("Ljud sparat som PÅ – rör skärmen för att starta.", 2200), 650);
+
+async function startAudioFromGesture(){
+  if (!audioEnabled || !pendingAutoStart) return;
+  pendingAutoStart = false;
+  ensureAudio();
+  if (audioCtx && audioCtx.state === "suspended"){
+    try { await audioCtx.resume(); } catch (e) {}
   }
+  await musicOn();
+}
 
-  function grunt(intensity=1){
-    if (!audioEnabled) return;
-    ensureAudio();
-    const a = audioCtx;
-    const now = a.currentTime;
+// Om användaren tidigare haft ljud PÅ: starta vid första interaktion (drag på canvas räcker).
+window.addEventListener("pointerdown", startAudioFromGesture, { once:true, passive:true });
+window.addEventListener("touchstart", startAudioFromGesture, { once:true, passive:true });
+window.addEventListener("mousedown", startAudioFromGesture, { once:true, passive:true });
 
-    const o = a.createOscillator();
-    const g = a.createGain();
-    const f = a.createBiquadFilter();
+function ping(freq, t=0.08, gain=0.08){
+  if (!audioEnabled) return;
+  ensureAudio();
+  const a = audioCtx;
+  const now = a.currentTime;
+  const o = a.createOscillator();
+  const g = a.createGain();
+  o.type = "triangle";
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(gain, now + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + t);
+  o.connect(g); g.connect(a.destination);
+  o.start(now); o.stop(now + t + 0.02);
+}
 
-    f.type = "bandpass";
-    f.frequency.value = 240 + Math.random() * 520;
-    f.Q.value = 1.2 + Math.random() * 1.8;
+function grunt(intensity=1){
+  if (!audioEnabled) return;
+  ensureAudio();
+  const a = audioCtx;
+  const now = a.currentTime;
 
-    o.type = Math.random() < 0.5 ? "sawtooth" : "square";
-    const base = 90 + Math.random() * 70;
-    o.frequency.setValueAtTime(base * (1 + 0.25*intensity), now);
-    o.frequency.exponentialRampToValueAtTime(base * 0.62, now + 0.18);
+  const o = a.createOscillator();
+  const g = a.createGain();
+  const f = a.createBiquadFilter();
 
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.12*intensity, now + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+  f.type = "bandpass";
+  f.frequency.value = 240 + Math.random() * 520;
+  f.Q.value = 1.2 + Math.random() * 1.8;
 
-    o.connect(f); f.connect(g); g.connect(a.destination);
-    o.start(now); o.stop(now + 0.25);
-  }
+  o.type = Math.random() < 0.5 ? "sawtooth" : "square";
+  const base = 90 + Math.random() * 70;
+  o.frequency.setValueAtTime(base * (1 + 0.25*intensity), now);
+  o.frequency.exponentialRampToValueAtTime(base * 0.62, now + 0.18);
+
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(0.12*intensity, now + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+  o.connect(f); f.connect(g); g.connect(a.destination);
+  o.start(now); o.stop(now + 0.25);
+}
 
 function pop(intensity = 1) {
   if (!audioEnabled) return;
@@ -176,30 +263,35 @@ function swoosh(){
   });
 }
 
-
-  function jingle(){
-    if (!audioEnabled) return;
-    [523.25,659.25,783.99,659.25,523.25].forEach((f,i)=>{
-      setTimeout(()=>ping(f, 0.09, 0.08), i*90);
-    });
-  }
-
-  soundBtn?.addEventListener("click", async ()=>{
-    audioEnabled = !audioEnabled;
-    soundBtn.textContent = audioEnabled ? "🔊 Ljud: PÅ" : "🔊 Ljud: AV";
-    if (audioEnabled){
-      ensureAudio();
-      if (audioCtx.state === "suspended") await audioCtx.resume();
-      await musicOn();
-      toast("Ljud på.");
-      grunt(1.0);
-    } else {
-      musicOff(true);
-      toast("Ljud av.");
-    }
+function jingle(){
+  if (!audioEnabled) return;
+  [523.25,659.25,783.99,659.25,523.25].forEach((f,i)=>{
+    setTimeout(()=>ping(f, 0.09, 0.08), i*90);
   });
+}
 
-  // Om användaren byter app/flik: pausa musiken så iOS inte blir grinig.
+soundBtn?.addEventListener("click", async ()=>{
+  audioEnabled = !audioEnabled;
+  pendingAutoStart = false;
+
+  try { localStorage.setItem("jesper_audio_enabled", audioEnabled ? "1" : "0"); } catch (e) {}
+  setSoundBtnLabel();
+
+  if (audioEnabled){
+    ensureAudio();
+    if (audioCtx && audioCtx.state === "suspended") await audioCtx.resume();
+    await musicOn();
+    toast("Ljud på.");
+    grunt(1.0);
+    vibe(18);
+  } else {
+    musicOff(true);
+    toast("Ljud av.");
+    vibe(10);
+  }
+});
+
+// Om användaren byter app/flik: pausa musiken så iOS inte blir grinig.
   document.addEventListener("visibilitychange", ()=>{
     if (!bgMusic) return;
     if (document.hidden){
@@ -338,7 +430,8 @@ function swoosh(){
     jesper.facing = -jesper.facing;
     setAction("bump");
     grunt(0.65);
-    bubble("💢 Ajjj!", 900);
+    vibe(14);
+    bubble("💢 Aj!", 900);
     pop(0.9);
     // liten skakning
     state.shakeT = 0.18;
@@ -366,7 +459,7 @@ function swoosh(){
         state.dragging = o;
         o.vx = 0;
         canvas.setPointerCapture(e.pointerId);
-        toast("Stökar runt lite..");
+        toast("Flyttar pynt.");
         grunt(0.7);
         return;
       }
@@ -444,10 +537,10 @@ if (!("PointerEvent" in window)){
     if (id === seq[state.secretStep]){
       state.secretStep++;
       toast(`Hemligheten: ${state.secretStep}/3`);
-      if (state.secretStep === 3) bubble("Vila på stolen!");
+      if (state.secretStep === 3) bubble("SITT på stolen. Nu.");
     } else {
       state.secretStep = 0;
-      toast("Nää.. börjar om.");
+      toast("Nää… Börja om…");
     }
   }
 
@@ -456,7 +549,8 @@ if (!("PointerEvent" in window)){
     state.unlocked = true;
     try { localStorage.setItem("jesper_unlocked", "1"); } catch (e) {}
     jingle();
-    bubble("…okej. Respekt.", 1400);
+    vibe([25,40,25]);
+    bubble("…okej. Bra.", 1400);
     wonder?.classList.remove("hidden");
   }
 
@@ -474,15 +568,16 @@ if (!("PointerEvent" in window)){
     }
     setAction("kick");
     grunt(1.0);
+    vibe(22);
 
     if (!best || bestD > reach){
-      bubble("Hej hopp!", 1200);
+      bubble("Miss! Men det räknas.", 1200);
       return;
     }
 
     const dir = Math.sign(best.x - jesper.x) || jesper.facing;
     best.vx += dir * (520 + Math.random()*120);
-    bubble(`👊💥POOF! (${best.label})`, 900);
+    bubble(`👊 HIT! (${best.label})`, 900);
     advanceSecret(best.id);
   }
 
@@ -490,28 +585,29 @@ if (!("PointerEvent" in window)){
     // sit if close to chair
     const chairCenter = props.chair.x + props.chair.w/2;
     if (Math.abs(jesper.x - chairCenter) > 90){
-      bubble("💤 Ingen rast än...", 1300);
+      bubble("Satt mentalt. Inte fysiskt.", 1300);
       grunt(0.65);
       return;
     }
 
     setAction("sit");
     grunt(0.75);
-    bubble("🪑 …existens…", 1400);
+    vibe(12);
+    bubble("🪑 …existens… jul…", 1400);
 
     if (state.secretStep === 3 && !state.unlocked){
-      toast("Julkombo fullbordad!");
+      toast("Uppdrag utfört!");
       unlock();
     }
   }
 
   // ---------- Commentary ----------
   const lines = [
-    "saknar inte mitt hörn",
-    "ska nog ta en kopp kaffe",
-    "undra vad de gör på fabriken?",
-    "skönt att vara ledig!",
-    "jätteroligt med jul."
+    "Det här rummet känns… budget…",
+    "Kanske en kaffe…",
+    "Jag är 100% ledig…",
+    "Den där lilla tavlan…",
+    "Undra hur det går på fabriken…"
   ];
   setInterval(()=>{
     if (!wonder?.classList.contains("hidden")) return;
@@ -569,8 +665,8 @@ if (jesper.x < leftWall){
 
 // Idle trigger (efter 8s)
 jesper.idleTimer = (jesper.idleTimer || 0) + dt;
-if (jesper.action === "idle" && jesper.idleTimer > 4){
-  bubble("👋 Hohoho...?");
+if (jesper.action === "idle" && jesper.idleTimer > 8){
+  bubble("👋 Hoho...?");
   setAction("wave");
   pop(1.0);
   jesper.idleTimer = 0;
@@ -639,7 +735,7 @@ if (jesper.action !== "idle") jesper.idleTimer = 0;
     // label
     ctx.fillStyle = "rgba(17,24,39,0.25)";
     ctx.font = "900 14px ui-monospace, monospace";
-    ctx.fillText("                   JUL", ROOM.x + 14, ROOM.y + ROOM.h - 12);
+    ctx.fillText("                    JUL", ROOM.x + 14, ROOM.y + ROOM.h - 12);
 
     ctx.restore();
   }
@@ -1034,7 +1130,7 @@ function drawFramePlaceholder(){
     ctx.font = "900 12px ui-monospace, monospace";
     ctx.fillStyle = "rgba(17,24,39,0.55)";
     ctx.textAlign = "center";
-    ctx.fillText("JESP", 0, -62);
+    ctx.fillText("JESPER", 0, -62);
 
     ctx.restore();
 
@@ -1135,7 +1231,7 @@ function drawFramePlaceholder(){
   }
 
   try{
-    setTimeout(()=>toast("Tips:  ⏰ → 🍬 → ⭐ och vila."), 900);
+    setTimeout(()=>toast("⏰ → 🍬 → ⭐ och sitt ner."), 900);
     requestAnimationFrame(frame);
   } catch(err){
     console.error(err);
