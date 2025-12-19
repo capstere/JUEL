@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Jul med JESP</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__left">
+      <div class="brand">✨Jul med JESP✨</div>
+      <div class="countdown">Tillbaka i hörnet: <span id="countdownValue" class="countdown__value">…</span></div>
+      <div id="mood" class="mood" aria-live="polite">Stämning: 😐</div>
+    </div>
+    <div class="topbar__right">
+      <button id="soundBtn" class="btn">🔊 Ljud: AV</button>
+      <button id="hintBtn" class="btn btn--alt btn--icon" aria-label="Tips">💡</button>
+      <button id="achBtn" class="btn btn--alt btn--icon" aria-label="Bedrifter">🏆</button>
+      <a id="doorShortcut" class="btn btn--alt btn--icon hidden" href="https://capstere.github.io/7thJan26/" target="_blank" rel="noopener" aria-label="Rymdportal">🚪</a>
+      <button id="resetTopBtn" class="btn btn--alt btn--icon hidden" aria-label="Spela om">🔁</button>
+      <button id="helpBtn" class="btn btn--alt btn--icon" aria-label="Huh">?</button>
+    </div>
+  </header>
+
+  <main class="app">
+    <section class="screen" aria-label="Spel">
+      <canvas id="game"></canvas>
+      <div id="frameOverlay" class="frameOverlay" aria-hidden="true">
+        <img id="frameGif" src="assets/tavla.gif" alt="" />
+        <div id="boopHotspot" class="boopHotspot" aria-hidden="true"></div>
+      </div>
+      <div id="toast" class="toast hidden"></div>
+      <div id="bubble" class="bubble hidden"></div>
+      <div class="hint">Det blir bra till jul</div>
+    </section>
+
+    <section class="controls" aria-label="Kontroller">
+      <button id="kickBtn" class="btn btn--big">👊 Punch</button>
+      <button id="sitBtn" class="btn btn--big btn--alt">🪑 Sit</button>
+      <button id="danceBtn" class="btn btn--big hidden">🕺 Dance</button>
+    </section>
+  </main>
+
+  <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal__card">
+      <div class="modal__title">Hmm!?</div>
+      <div class="modal__body">
+        <p><b>Spel:</b>Gå runt lite</p>
+        <p><b>Syfte:</b>Inget</p>
+        <p><b>Mål:</b>⏰ → 🍬 → ⭐ → 🪑</p>
+      </div>
+      <div class="modal__actions">
+        <button id="closeHelpBtn" class="btn btn--big">Aha...</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="achModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal__card">
+      <div class="modal__title">🏆 Bedrifter</div>
+      <div class="modal__body">
+        <div class="achStats">
+          <div><b>Vägg-dutt:</b> <span id="boopCount">0</span></div>
+          <div><b>Tid:</b> <span id="runTime">—</span></div>
+          <div><b>Bästa Tid:</b> <span id="bestTime">—</span></div>
+        </div>
+        <ul class="achList">
+          <li class="achItem" data-ach="booper"><span class="achBadge">⬜</span> Duttmästare</li>
+          <li class="achItem" data-ach="speedrunner"><span class="achBadge">⬜</span> Snabb</li>
+          <li class="achItem" data-ach="confetti"><span class="achBadge">⬜</span> Confettiregn</li>
+          <li class="achItem" data-ach="door"><span class="achBadge">⬜</span> Portal hittad</li>
+        </ul>
+        <div class="smallmuted">Tips: Ingen aning, gör lite bara 👀</div>
+      </div>
+      <div class="modal__actions">
+        <button id="closeAchBtn" class="btn btn--big">Stäng</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="wonder" class="wonder hidden" role="dialog" aria-modal="true">
+    <div class="wonder__card">
+      <div class="wonder__title">woho..!</div>
+      <div class="wonder__subtitle">Julfrid uppnådd.</div>
+
+      <div class="wonder__art">
+        <img id="wonderImg" class="wonder__img" src="assets/julbild.jpg" alt="Julbild" />
+        <div id="wonderFallback" class="wonder__fallback hidden">
+          <div class="sparkle">✨</div><div class="sparkle">✨</div><div class="sparkle">✨</div><div class="sparkle">✨</div>
+          <div class="sparkle">✨</div><div class="sparkle">✨</div><div class="sparkle">✨</div><div class="sparkle">✨</div>
+          <div class="fallbackText">Lägg en bild i <b>/assets/julbild.jpg</b></div>
+        </div>
+      </div>
+
+      <div class="wonder__actions">
+        <button id="closeWonderBtn" class="btn btn--big">Tillbaka till JESP</button>
+        <button id="resetBtn" class="btn btn--big btn--alt">🔁 Spela om</button>
+        <a id="doorLink" class="btn btn--big btn--alt" href="https://capstere.github.io/7thJan26/" target="_blank" rel="noopener">🚪 Rymdportal</a>
+        <button id="highFiveBtn" class="btn btn--big">✋ High‑five</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Preload tavla-bilden (ritas på väggen i canvas) -->
+  <!-- Du kan byta till en GIF (t.ex. assets/tavla.gif) om du vill ha animation -->
+  <canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
+
+  <img id="tavlaImg" src="assets/tavla.gif" alt="Tavla"
+       style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" />
+
+  <script src="main.js"></script>
+  <script>
+    // Service worker (offline cache) — kräver https eller localhost
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(console.warn);
+    }
+  </script>
+
+</body>
+</html>
+
